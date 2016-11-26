@@ -6,14 +6,193 @@
 
 ## Redis是什么
 
-Redis是一种非关系型数据库，可以存储五种数据类型的值，可以持久化到磁盘上，支持分片。
+Redis是一个速度非常快的非关系型内存数据库，它可以存储键与5种不同类型的值之间的映射，可以将存储在内存中的键值对数据持久化到硬盘，可以利用复制功能实现主从关系增强读性能，还可以利用客户端分片增强写性能。
 
-### Redis和其他数据存储软件之间的比较
+### Redis和其他数据存储软件
 
 | 名称        | 类型                 | 支持的数据结构                                           | 附加功能                                   |
 | ---------- | -------------------- | ----------------------------------------------------- | ----------------------------------------- |
 | Redis      | 基于内存、非关系型      | Strings, lists, sets, hashes, sorted sets             | 支持订阅/发布模型，支持主从复制，持久化，脚本编程 |
-| memcached  | 基于内存、非关系型      | Map                                                   | 支持多线程                                 |       
-| MySQL      | 基于磁盘、关系型        | 表（行和列）、视图及三方扩展                               | 支持ACID事务，主从复制                      |
-| MongoDB    | 基于磁盘、文档的        | BSON：一种类json的一种二进制形式的存储格式，简称Binary JSON  | 支持主从复制，分片                          |
+| memcached  | 基于内存、非关系型      | Map                                                   | 支持多线程                                  |       
+| MySQL      | 基于磁盘、关系型        | 表（行和列）、视图及三方扩展                               | 支持ACID事务，主从复制，主主复制              |
+| MongoDB    | 基于磁盘、文档型        | BSON：一种类json的一种二进制形式的存储格式，简称Binary JSON  | 支持，map-reduce操作，主从复制，分片，空间索引  |
+
+### Redis附加特性
+
+因为Reids是基于内存的数据库，所以就必须考虑一下问题：
+
+ - Q：服务器关机的时候，内存中的数据如何保存？ A：Redis有两种方式持久化内存中的数据。
+
+ - Q：如何扩展读性能？ A：Redis实现了主从复制特性，执行复制的从服务器会连接上主服务器，接收主服务器发送的数据库的初始拷贝；之后主服务器中执行的写命令，都会发送给所有连着的从服务器去执行，从而实时的更新从服务器的数据。
+
+---
+
+## Redis 数据结构
+
+Redis可以存储键与5中不同数据结构类型之间的映射，如下：
+
+| 数据结构 | 值                     |
+| ------- | --------------------- |
+| 字符串   | 可以使字符串、整数或浮点数 |
+| 列表     | 一个链表（队列）         | 
+| 集合     | 无需不可重复的集合       |
+| 散列     | 键值对的无需散列表       |
+| 有序集合  | 有序的集合             |
+
+### Redis中的字符串
+
+```
+# 使用redis-cli客户端操作redis
+root@iZ2ze9qnmldt4kxs2siyvwZ:~# redis-cli
+# 查看所有的key
+127.0.0.1:6379> keys *
+# 此时key的数目为零
+(empty list or set)
+# 设置key为hello，value为world
+127.0.0.1:6379> set hello world
+OK
+# 获取key为hello的值
+127.0.0.1:6379> get hello
+"world"
+# 更新key为hello的值
+127.0.0.1:6379> set hello hehe
+OK
+127.0.0.1:6379> get hello
+"hehe"
+# 删除名为hello的key
+127.0.0.1:6379> del hello
+# 这里的数字表示删除的key的个数
+(integer) 1
+127.0.0.1:6379> get hello
+# 此时名为hello的key已经没有值
+(nil)
+```
+
+### Redis中的列表
+
+```
+# 往链表的右端push一个元素，对应的还有lpush
+127.0.0.1:6379> rpush list-key item
+(integer) 1
+127.0.0.1:6379> rpush list-key item2
+(integer) 2
+127.0.0.1:6379> rpush list-key item
+(integer) 3
+127.0.0.1:6379> rpush list-key item3
+(integer) 4
+# lrange 用于获取索引范围内的所有元素，0到-1表示获取全部元素
+127.0.0.1:6379> lrange list-key 0 -1
+1) "item"
+2) "item2"
+3) "item"
+4) "item3"
+# lindex根据索引值获取元素
+127.0.0.1:6379> lindex list-key 3
+"item3"
+# lpop弹出最左边的元素
+127.0.0.1:6379> lpop list-key
+"item"
+127.0.0.1:6379> lrange list-key 0 -1
+1) "item2"
+2) "item"
+3) "item3"
+```
+
+### Redis中的集合
+
+```
+# 添加一个元素到集合中
+127.0.0.1:6379> sadd set-key item
+(integer) 1
+127.0.0.1:6379> sadd set-key item2
+(integer) 1
+127.0.0.1:6379> sadd set-key item3
+(integer) 1
+# 同一个key中的元素不允许重复
+127.0.0.1:6379> sadd set-key item
+(integer) 0
+# smembers用于获取集合中的所有元素，集合中的元素是无序的
+127.0.0.1:6379> smembers set-key
+1) "item"
+2) "item3"
+3) "item2"
+# sismember检查key中的某个元素是否存在，存在返回1，不存在返回0
+127.0.0.1:6379> sismember set-key item4
+(integer) 0
+127.0.0.1:6379> sismember set-key item
+(integer) 1
+# srem用于删除key中的某个元素，如果该元素存在返回1，如果不存在返回0
+127.0.0.1:6379> srem set-key item
+(integer) 1
+127.0.0.1:6379> smembers set-key
+1) "item3"
+2) "item2"
+```
+
+### Redis的散列
+
+```
+# 设置散列的键值
+127.0.0.1:6379> hset hash-key field1 value1
+(integer) 1
+127.0.0.1:6379> hset hash-key field2 value2
+(integer) 1
+127.0.0.1:6379> hset hash-key field3 value3
+(integer) 1
+# hgetall获取散列中的所有键值对
+127.0.0.1:6379> hgetall hash-key
+1) "field1"
+2) "value1"
+3) "field2"
+4) "value2"
+5) "field3"
+6) "value3"
+# hget获取散列中属性为field1的值
+127.0.0.1:6379> hget hash-key field1
+"value1"
+# 更新散列中属性的值
+127.0.0.1:6379> hset hash-key field1 vvvvv1
+(integer) 0
+127.0.0.1:6379> hget hash-key field1
+"vvvvv1"
+# hdel删除散列中属性为field3的键值对
+127.0.0.1:6379> hdel hash-key field3
+(integer) 1
+127.0.0.1:6379> hgetall hash-key
+1) "field1"
+2) "vvvvv1"
+3) "field2"
+4) "value2"
+```
+
+### Redis的有序集合
+
+```
+# 添加zset集合中的元素和score，score必须是浮点数
+127.0.0.1:6379> zadd zset-key 728 z1
+(integer) 1
+127.0.0.1:6379> zadd zset-key 982 z2
+(integer) 1
+# 添加相同元素时，score会覆盖
+127.0.0.1:6379> zadd zset-key 983 z2
+(integer) 0
+# zrange获取zset中所有的元素和score
+127.0.0.1:6379> zrange zset-key 0 -1 withscores
+1) "z1"
+2) "728"
+3) "z2"
+4) "983"
+# zrangebyscore获取zset中score在0到800之间的元素
+127.0.0.1:6379> zrangebyscore zset-key 0 800 withscores
+1) "z1"
+2) "728"
+# zrem删除zset中名为z1的key
+127.0.0.1:6379> zrem zset-key z1
+(integer) 1
+127.0.0.1:6379> zrange zset-key 0 -1 withscores
+1) "z2"
+2) "983"
+```
+
+---
 
