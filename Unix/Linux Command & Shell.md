@@ -270,5 +270,41 @@ Linux中有两种不同类型的文件类型：
 #### 查看文件内容
 
 ``` shell
+#查看文件统计信息，stat命令展示出的信息十分详细
+stat xingbookdb.dump 
+文件：'xingbookdb.dump'
+大小：363250326 	块：709480     IO 块：4096   普通文件
+设备：fc00h/64512d	Inode：53216023    硬链接：1
+权限：(0644/-rw-r--r--)  Uid：(    0/    root)   Gid：(    0/    root)
+最近访问：2017-04-18 20:49:02.358775234 +0800
+最近更改：2017-04-18 20:41:14.000000000 +0800
+最近改动：2017-04-18 20:48:18.515268041 +0800
+创建时间：-
 
+#查看文件类型，file命令
+file hehe
+# 软链接类型
+hehe: symbolic link to xingbookdb.dump
+file xingbookdb.dump 
+# 文件类型
+xingbookdb.dump: , init=0x454c, stat=0x4b20, dev=0x5945, bas=0x2053
+file xingbook
+# 目录类型
+xingbook: directory
+
+# 查看文件内容，less命令，像cat和more命令就不详细解释了
+# -N 显示行号
+less -N txt
+
+# 查看文件末尾内容，tail命令
+tail -n 200 显示最后两百行信息
+tail -f 一直监听着文件的输出信息
+
+# 查看文件头部内容，head命令
 ```
+
+---
+
+## 高级的Bash Shell命令
+
+### 
